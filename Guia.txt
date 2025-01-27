@@ -1,0 +1,61 @@
+Modo Local:
+docker-compose down --volumes --remove-orphans
+# Método A: con variable ENV_FILE en tu shell
+export ENV_FILE=.env.local
+docker-compose up --build -d
+
+# Método B: con un "override" en cada servicio
+docker-compose --env-file .env.local up --build -d
+
+bash start.sh local
+
+escalar servicios
+docker-compose --env-file .env.local up --scale taxi=3 --scale customer=2
+
+Modo Distribuido:
+bash start.sh distributed
+
+ipconfig
+
+Modo Distribuido:
+1. En la Máquina Central (PC1):
+   Ejecuta los servicios:
+   docker-compose --env-file .env.distributed --profile central up --build
+   - Zookeeper escucha en el puerto 2181.
+   - Kafka escucha en el puerto 9092.
+   - La Central está activa en el puerto 8443.
+
+2. En la Máquina de Taxis (PC2):
+   Ejecuta los taxis:
+   docker-compose --env-file .env.distributed --profile taxi up --build
+   - Puedes escalar los taxis:
+     docker-compose --env-file .env.distributed --profile taxi up --scale taxi=5
+
+3. En la Máquina de Clientes (PC3):
+   Ejecuta los clientes:
+   docker-compose --env-file .env.distributed --profile customer up --build
+   - Puedes escalar los clientes:
+     docker-compose --env-file .env.distributed --profile customer up --scale customer=3
+
+**Pruebas de Resiliencia**
+1. Identifica el contenedor:
+   docker ps
+2. Detén el contenedor:
+   docker stop <container_id>
+3. Observa cómo el sistema sigue funcionando con los servicios restantes.
+4. Reinicia el contenedor:
+   docker start <container_id>
+5. Verifica que el servicio se reintegra automáticamente.
+
+**Probar Kafka**
+1. Identifica el contenedor de Kafka:
+   docker ps
+2. Consume mensajes del topic `TAXI_POSITIONS`:
+   docker exec -it <kafka_container_id> kafka-console-consumer --bootstrap-server kafka:9092 --topic TAXI_POSITIONS --from-beginning
+3. Ejemplo de salida esperada:
+   Taxi #1 position: 12,34
+   Taxi #2 position: 56,78
+
+
+
+

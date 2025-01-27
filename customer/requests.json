@@ -1,0 +1,5 @@
+[
+    {"pickup_location": {"x": 10, "y": 15}},
+    {"pickup_location": {"x": 5, "y": 8}},
+    {"pickup_location": {"x": 20, "y": 20}}
+]

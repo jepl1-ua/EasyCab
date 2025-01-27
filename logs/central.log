@@ -1,0 +1,86 @@
+2025-01-27 22:26:05,112 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:05,113 - Probing node bootstrap-0 broker version
+2025-01-27 22:26:05,114 - Connect attempt to <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]> returned error 111. Disconnecting.
+2025-01-27 22:26:05,115 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Closing connection. KafkaConnectionError: 111 ECONNREFUSED
+2025-01-27 22:26:05,160 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:05,162 - Connect attempt to <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]> returned error 111. Disconnecting.
+2025-01-27 22:26:05,163 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Closing connection. KafkaConnectionError: 111 ECONNREFUSED
+2025-01-27 22:26:05,163 - Kafka not available. Retrying in 5 seconds... (Attempt 1/10)
+2025-01-27 22:26:10,171 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:10,171 - Probing node bootstrap-0 broker version
+2025-01-27 22:26:10,172 - Connect attempt to <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]> returned error 111. Disconnecting.
+2025-01-27 22:26:10,173 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Closing connection. KafkaConnectionError: 111 ECONNREFUSED
+2025-01-27 22:26:10,220 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:10,221 - Connect attempt to <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]> returned error 111. Disconnecting.
+2025-01-27 22:26:10,221 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Closing connection. KafkaConnectionError: 111 ECONNREFUSED
+2025-01-27 22:26:10,222 - Kafka not available. Retrying in 5 seconds... (Attempt 2/10)
+2025-01-27 22:26:15,228 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:15,229 - Probing node bootstrap-0 broker version
+2025-01-27 22:26:15,231 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Connection complete.
+2025-01-27 22:26:15,346 - Broker version identified as 2.5.0
+2025-01-27 22:26:15,346 - Set configuration api_version=(2, 5, 0) to skip auto check_version requests on startup
+2025-01-27 22:26:15,351 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connected> [IPv4 ('172.20.0.6', 9092)]>: Closing connection. 
+2025-01-27 22:26:15,352 - Kafka is available.
+2025-01-27 22:26:15,354 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:15,355 - Probing node bootstrap-0 broker version
+2025-01-27 22:26:15,356 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Connection complete.
+2025-01-27 22:26:15,461 - Broker version identified as 2.5.0
+2025-01-27 22:26:15,462 - Set configuration api_version=(2, 5, 0) to skip auto check_version requests on startup
+2025-01-27 22:26:15,466 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:15,467 - Probing node bootstrap-0 broker version
+2025-01-27 22:26:15,468 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Connection complete.
+2025-01-27 22:26:15,572 - Broker version identified as 2.5.0
+2025-01-27 22:26:15,574 - Set configuration api_version=(2, 5, 0) to skip auto check_version requests on startup
+2025-01-27 22:26:15,575 - group_id is None: disabling auto-commit.
+2025-01-27 22:26:15,576 - Updating subscribed topics to: ('TAXI_POSITIONS', 'CUSTOMER_REQUESTS')
+2025-01-27 22:26:15,577 - Central server started
+2025-01-27 22:26:15,582 - Updated partition assignment: [TopicPartition(topic='CUSTOMER_REQUESTS', partition=0), TopicPartition(topic='TAXI_POSITIONS', partition=0)]
+2025-01-27 22:26:15,585 - <BrokerConnection node_id=1 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:15,585 - <BrokerConnection node_id=1 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Connection complete.
+2025-01-27 22:26:15,586 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connected> [IPv4 ('172.20.0.6', 9092)]>: Closing connection. 
+2025-01-27 22:26:15,751 - No taxis available for Client 1
+2025-01-27 22:26:15,752 - Map updated
+2025-01-27 22:26:15,752 - Taxi 101 updated: {'position': (0, 0), 'available': True}
+2025-01-27 22:26:19,736 - Assigned Taxi 101 to Client 1
+2025-01-27 22:26:19,738 - <BrokerConnection node_id=1 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: connecting to kafka:9092 [('172.20.0.6', 9092) IPv4]
+2025-01-27 22:26:19,739 - <BrokerConnection node_id=1 host=kafka:9092 <connecting> [IPv4 ('172.20.0.6', 9092)]>: Connection complete.
+2025-01-27 22:26:19,740 - <BrokerConnection node_id=bootstrap-0 host=kafka:9092 <connected> [IPv4 ('172.20.0.6', 9092)]>: Closing connection. 
+2025-01-27 22:26:19,756 - Map updated
+2025-01-27 22:26:19,756 - Taxi 101 updated: {'position': (1, 1), 'available': True}
+2025-01-27 22:26:20,756 - Map updated
+2025-01-27 22:26:20,757 - Taxi 101 updated: {'position': (2, 2), 'available': True}
+2025-01-27 22:26:21,757 - Map updated
+2025-01-27 22:26:21,758 - Taxi 101 updated: {'position': (3, 3), 'available': True}
+2025-01-27 22:26:22,759 - Map updated
+2025-01-27 22:26:22,760 - Taxi 101 updated: {'position': (4, 4), 'available': True}
+2025-01-27 22:26:23,741 - Assigned Taxi 101 to Client 1
+2025-01-27 22:26:23,761 - Map updated
+2025-01-27 22:26:23,761 - Taxi 101 updated: {'position': (5, 5), 'available': True}
+2025-01-27 22:26:24,762 - Map updated
+2025-01-27 22:26:24,762 - Taxi 101 updated: {'position': (5, 6), 'available': True}
+2025-01-27 22:26:25,764 - Map updated
+2025-01-27 22:26:25,765 - Taxi 101 updated: {'position': (5, 7), 'available': True}
+2025-01-27 22:26:26,764 - Map updated
+2025-01-27 22:26:26,765 - Taxi 101 updated: {'position': (5, 8), 'available': True}
+2025-01-27 22:26:27,769 - Map updated
+2025-01-27 22:26:27,769 - Taxi 101 updated: {'position': (6, 9), 'available': True}
+2025-01-27 22:26:28,771 - Map updated
+2025-01-27 22:26:28,771 - Taxi 101 updated: {'position': (7, 10), 'available': True}
+2025-01-27 22:26:29,771 - Map updated
+2025-01-27 22:26:29,772 - Taxi 101 updated: {'position': (8, 11), 'available': True}
+2025-01-27 22:26:30,772 - Map updated
+2025-01-27 22:26:30,773 - Taxi 101 updated: {'position': (9, 12), 'available': True}
+2025-01-27 22:26:31,776 - Map updated
+2025-01-27 22:26:31,776 - Taxi 101 updated: {'position': (10, 13), 'available': True}
+2025-01-27 22:26:32,775 - Map updated
+2025-01-27 22:26:32,775 - Taxi 101 updated: {'position': (11, 14), 'available': True}
+2025-01-27 22:26:33,778 - Map updated
+2025-01-27 22:26:33,778 - Taxi 101 updated: {'position': (12, 15), 'available': True}
+2025-01-27 22:26:34,779 - Map updated
+2025-01-27 22:26:34,779 - Taxi 101 updated: {'position': (13, 16), 'available': True}
+2025-01-27 22:26:35,780 - Map updated
+2025-01-27 22:26:35,781 - Taxi 101 updated: {'position': (14, 17), 'available': True}
+2025-01-27 22:26:36,783 - Map updated
+2025-01-27 22:26:36,784 - Taxi 101 updated: {'position': (15, 18), 'available': True}
+2025-01-27 22:26:37,784 - Map updated
+2025-01-27 22:26:37,784 - Taxi 101 updated: {'position': (16, 19), 'available': True}
