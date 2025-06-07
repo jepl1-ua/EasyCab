@@ -38,12 +38,25 @@ wait_for_kafka(bootstrap_servers=KAFKA_BROKER)
 # Inicializar cifrado
 fernet = Fernet(TAXI_KEY.encode()) if TAXI_KEY else None
 
-# Inicializar productor y consumidor
-producer = KafkaProducer(bootstrap_servers=KAFKA_BROKER, value_serializer=lambda v: json.dumps(v).encode('utf-8'))
+# Inicializar productor y consumidores
+producer = KafkaProducer(
+    bootstrap_servers=KAFKA_BROKER,
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
+# Consumidor principal (asignaciones y comandos)
 consumer = KafkaConsumer(
     'TAXI_ASSIGNMENTS',
+    'TAXI_COMMANDS',
     bootstrap_servers=KAFKA_BROKER,
-    value_deserializer=lambda v: json.loads(v.decode('utf-8'))
+    value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+)
+
+# Consumidor para respuestas de autenticación
+auth_consumer = KafkaConsumer(
+    'TAXI_AUTH_RESPONSE',
+    bootstrap_servers=KAFKA_BROKER,
+    value_deserializer=lambda v: json.loads(v.decode('utf-8')),
 )
 
 def register_with_registry():
@@ -52,6 +65,18 @@ def register_with_registry():
     except Exception as e:
         print(f"Failed to register taxi: {e}")
 
+
+def authenticate_with_central():
+    """Solicitar un token de autenticación a la Central."""
+    global auth_token
+    producer.send('TAXI_AUTH', {"taxi_id": TAXI_ID})
+    for message in auth_consumer:
+        data = message.value
+        if data.get("taxi_id") == TAXI_ID:
+            auth_token = data.get("token")
+            print(f"Taxi {TAXI_ID} autenticado")
+            break
+
 # Estado inicial del taxi
 taxi_state = {
     "taxi_id": TAXI_ID,
@@ -59,13 +84,20 @@ taxi_state = {
     "available": True
 }
 
+# Token de autenticación asignado por la Central
+auth_token = None
+
 def send_state():
     """Enviar el estado cifrado al tópico de posiciones."""
+    global auth_token
+    if not auth_token:
+        return
     if not fernet:
         payload = taxi_state
     else:
         encrypted = fernet.encrypt(json.dumps(taxi_state).encode()).decode()
         payload = {"taxi_id": TAXI_ID, "payload": encrypted}
+    payload["token"] = auth_token
     producer.send('TAXI_POSITIONS', payload)
 
 def update_position(destination):
@@ -88,22 +120,30 @@ def update_position(destination):
 
 def listen_for_assignments():
     """Escuchar asignaciones del Central."""
+    global auth_token
     for message in consumer:
-        assignment = message.value
-        if assignment["taxi_id"] == TAXI_ID:
-            print(f"Asignación recibida: {assignment}")
-            pickup = assignment["pickup_location"]
-            final_dest = assignment.get("destination")
-            taxi_state["available"] = False
-            send_state()
-            update_position(pickup)
-            if final_dest:
-                update_position(final_dest)
-            taxi_state["available"] = True  # Liberar taxi al terminar
-            send_state()
+        if message.topic == 'TAXI_ASSIGNMENTS':
+            assignment = message.value
+            if assignment["taxi_id"] == TAXI_ID:
+                print(f"Asignación recibida: {assignment}")
+                pickup = assignment["pickup_location"]
+                final_dest = assignment.get("destination")
+                taxi_state["available"] = False
+                send_state()
+                update_position(pickup)
+                if final_dest:
+                    update_position(final_dest)
+                taxi_state["available"] = True  # Liberar taxi al terminar
+                send_state()
+        elif message.topic == 'TAXI_COMMANDS':
+            command = message.value
+            if command.get("taxi_id") == TAXI_ID and command.get("command") == 'return_to_base':
+                print(f"Taxi {TAXI_ID} vuelve a base. Token invalidado")
+                auth_token = None
 
 if __name__ == "__main__":
     register_with_registry()
-    # Publicar estado inicial
+    authenticate_with_central()
+    # Publicar estado inicial tras autenticación
     send_state()
     listen_for_assignments()
