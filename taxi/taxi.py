@@ -3,10 +3,12 @@ import os
 import json
 import time
 import requests
+from cryptography.fernet import Fernet, InvalidToken
 
 # Variables de entorno
 KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
 TAXI_ID = os.getenv('TAXI_ID', '101')
+TAXI_KEY = os.getenv('TAXI_KEY')
 REGISTRY_HOST = os.getenv('REGISTRY_HOST', 'registry')
 REGISTRY_PORT = os.getenv('REGISTRY_PORT', '5000')
 REGISTRY_URL = f"https://{REGISTRY_HOST}:{REGISTRY_PORT}"
@@ -33,6 +35,9 @@ def wait_for_kafka(bootstrap_servers, retries=20, delay=5):
 # Esperar a Kafka
 wait_for_kafka(bootstrap_servers=KAFKA_BROKER)
 
+# Inicializar cifrado
+fernet = Fernet(TAXI_KEY.encode()) if TAXI_KEY else None
+
 # Inicializar productor y consumidor
 producer = KafkaProducer(bootstrap_servers=KAFKA_BROKER, value_serializer=lambda v: json.dumps(v).encode('utf-8'))
 consumer = KafkaConsumer(
@@ -54,6 +59,15 @@ taxi_state = {
     "available": True
 }
 
+def send_state():
+    """Enviar el estado cifrado al tópico de posiciones."""
+    if not fernet:
+        payload = taxi_state
+    else:
+        encrypted = fernet.encrypt(json.dumps(taxi_state).encode()).decode()
+        payload = {"taxi_id": TAXI_ID, "payload": encrypted}
+    producer.send('TAXI_POSITIONS', payload)
+
 def update_position(destination):
     """Simular movimiento hacia un destino."""
     while taxi_state["position"] != destination:
@@ -68,7 +82,7 @@ def update_position(destination):
             taxi_state["position"]["y"] -= 1
 
         # Publicar posición actualizada
-        producer.send('TAXI_POSITIONS', taxi_state)
+        send_state()
         print(f"Taxi {TAXI_ID} movido a {taxi_state['position']}")
         time.sleep(1)
 
@@ -81,16 +95,15 @@ def listen_for_assignments():
             pickup = assignment["pickup_location"]
             final_dest = assignment.get("destination")
             taxi_state["available"] = False
-            producer.send('TAXI_POSITIONS', taxi_state)
+            send_state()
             update_position(pickup)
             if final_dest:
                 update_position(final_dest)
             taxi_state["available"] = True  # Liberar taxi al terminar
-
-            producer.send('TAXI_POSITIONS', taxi_state)
+            send_state()
 
 if __name__ == "__main__":
     register_with_registry()
     # Publicar estado inicial
-    producer.send('TAXI_POSITIONS', taxi_state)
+    send_state()
     listen_for_assignments()
