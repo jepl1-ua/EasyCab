@@ -1,7 +1,10 @@
 import os
 import subprocess
 import time
+import shutil
+import pytest
 
+@pytest.mark.skipif(shutil.which("docker-compose") is None, reason="docker-compose not available")
 def test_resilience():
     print("Simulating resilience test...")
     # Apagar el servicio Central
