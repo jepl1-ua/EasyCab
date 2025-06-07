@@ -1,5 +1,7 @@
 import os
+import sys
 import threading
+import time
 import requests
 from flask import Flask, jsonify
 
@@ -32,7 +34,12 @@ def traffic_status():
 def menu():
     global CTC_CITY
     while True:
-        new_city = input('Enter city name (current: %s): ' % CTC_CITY).strip()
+        try:
+            new_city = input('Enter city name (current: %s): ' % CTC_CITY).strip()
+        except EOFError:
+            # End of input stream, avoid busy loop
+            time.sleep(0.1)
+            break
         if new_city:
             with CITY_LOCK:
                 CTC_CITY = new_city
@@ -40,5 +47,6 @@ def menu():
 
 
 if __name__ == '__main__':
-    threading.Thread(target=menu, daemon=True).start()
+    if sys.stdin.isatty():
+        threading.Thread(target=menu, daemon=True).start()
     app.run(host='0.0.0.0', port=int(os.getenv('CTC_PORT', '8080')))
