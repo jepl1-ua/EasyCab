@@ -93,6 +93,18 @@ services:
     profiles:
       - sensor
 
+  front:
+    build:
+      context: ./front
+    env_file:
+      - ${ENV_FILE:-.env.distributed}
+    ports:
+      - "3000:3000"
+    networks:
+      - easycab
+    profiles:
+      - front
+
   ctc:
     build:
       context: ./ctc

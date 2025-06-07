@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>EasyCab Monitor</title>
+  <style>
+    body { font-family: sans-serif; }
+    pre { background: #eee; padding: 1em; }
+  </style>
+</head>
+<body>
+  <h1>EasyCab Monitor</h1>
+  <div id="state">Loading state...</div>
+  <h2>Audit Log</h2>
+  <pre id="audit">Loading audit...</pre>
+  <script>
+    async function loadState() {
+      const resp = await fetch('/api/state');
+      const data = await resp.json();
+      document.getElementById('state').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+    async function loadAudit() {
+      const resp = await fetch('/api/audit');
+      const data = await resp.json();
+      document.getElementById('audit').textContent = data.audit.join('\n');
+    }
+    setInterval(() => { loadState(); loadAudit(); }, 2000);
+    loadState();
+    loadAudit();
+  </script>
+</body>
+</html>
