@@ -81,6 +81,16 @@ services:
     profiles:
       - sensor
 
+  ctc:
+    build:
+      context: ./ctc
+    env_file:
+      - ${ENV_FILE:-.env.distributed}
+    networks:
+      - easycab
+    profiles:
+      - ctc
+
 networks:
   easycab:
     driver: bridge

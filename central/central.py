@@ -4,11 +4,13 @@ import json
 import logging
 import threading
 import time
+import requests
 
 # Configuración
 HOST = os.getenv('CENTRAL_HOST', '0.0.0.0')
 PORT = int(os.getenv('CENTRAL_PORT', '8443'))
 KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
+CTC_URL = os.getenv('CTC_URL', 'http://ctc:5000/status')
 logging.basicConfig(filename='logs/central.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
 def wait_for_kafka(bootstrap_servers, retries=10, delay=5):
@@ -117,6 +119,27 @@ def kafka_listener():
         elif topic == 'CUSTOMER_REQUESTS':
             process_customer_message(message.value)
 
+def check_traffic():
+    """Consultar el servicio CTC cada 10 segundos."""
+    while True:
+        try:
+            resp = requests.get(CTC_URL, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                status = data.get("status")
+                city = data.get("city")
+                temp = data.get("temperature")
+                log_msg = f"CTC {city} => {status} ({temp}\u00b0C)"
+                if status == "KO":
+                    logging.warning(log_msg)
+                else:
+                    logging.info(log_msg)
+            else:
+                logging.error(f"CTC responded {resp.status_code}")
+        except Exception as e:
+            logging.error(f"Error contacting CTC: {e}")
+        time.sleep(10)
+
 def start_server():
     """Iniciar el servidor Central."""
     logging.info("Central server started")
@@ -124,3 +147,4 @@ def start_server():
 
 if __name__ == "__main__":
     threading.Thread(target=start_server).start()
+    threading.Thread(target=check_traffic, daemon=True).start()
