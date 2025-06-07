@@ -6,6 +6,7 @@ import threading
 import time
 import requests
 import uuid
+import sys
 from cryptography.fernet import Fernet, InvalidToken
 from flask import Flask, jsonify
 
@@ -363,7 +364,13 @@ def start_api():
 def command_loop():
     """Aceptar comandos manuales desde consola."""
     while True:
-        cmd = input().strip().split()
+        try:
+            cmd = input()
+        except EOFError:
+            print("STDIN closed, exiting command loop.")
+            logging.info("STDIN closed, exiting command loop.")
+            break
+        cmd = cmd.strip().split()
         if not cmd:
             continue
         action = cmd[0].lower()
@@ -392,7 +399,8 @@ if __name__ == "__main__":
     threading.Thread(target=start_server, daemon=True).start()
     threading.Thread(target=monitor_traffic, daemon=True).start()
     threading.Thread(target=monitor_taxis, daemon=True).start()
-    threading.Thread(target=command_loop, daemon=True).start()
+    if sys.stdin.isatty():
+        threading.Thread(target=command_loop, daemon=True).start()
     threading.Thread(target=start_api, daemon=True).start()
     while True:
         time.sleep(1)
