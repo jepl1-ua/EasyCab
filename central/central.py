@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 import requests
+from cryptography.fernet import Fernet, InvalidToken
 
 # EC_CTC configuration
 CTC_HOST = os.getenv('CTC_HOST', 'ctc')
@@ -19,6 +20,16 @@ REGISTRY_HOST = os.getenv('REGISTRY_HOST', 'registry')
 REGISTRY_PORT = os.getenv('REGISTRY_PORT', '5000')
 REGISTRY_URL = f"https://{REGISTRY_HOST}:{REGISTRY_PORT}"
 logging.basicConfig(filename='logs/central.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Carga de claves de taxis para desencriptar mensajes
+DEFAULT_KEYS_PATH = os.path.join(os.path.dirname(__file__), 'taxi_keys.json')
+TAXI_KEYS_FILE = os.getenv('TAXI_KEYS_FILE', DEFAULT_KEYS_PATH)
+try:
+    with open(TAXI_KEYS_FILE, 'r') as f:
+        TAXI_KEYS = json.load(f)
+except Exception as e:
+    TAXI_KEYS = {}
+    logging.error(f"Could not load taxi keys: {e}")
 
 def wait_for_kafka(bootstrap_servers, retries=10, delay=5):
     """
@@ -95,12 +106,28 @@ def update_map():
     logging.info("Map updated")
 
 def process_taxi_message(message):
-    taxi_id = message['taxi_id']
+    taxi_id = str(message.get('taxi_id'))
+    payload = message.get('payload')
+    key = TAXI_KEYS.get(taxi_id)
+    if not key or not payload:
+        logging.warning(f"Missing key or payload for taxi {taxi_id}")
+        return
+
+    fernet = Fernet(key.encode())
+    try:
+        decrypted = fernet.decrypt(payload.encode())
+        data = json.loads(decrypted.decode())
+    except InvalidToken:
+        print("mensaje no comprensible")
+        logging.error(f"Invalid encryption from taxi {taxi_id}")
+        return
+
     if not taxi_is_registered(taxi_id):
         logging.warning(f"Taxi {taxi_id} not registered. Ignoring message")
         return
-    pos_x = message['position']['x']
-    pos_y = message['position']['y']
+
+    pos_x = data['position']['x']
+    pos_y = data['position']['y']
 
     # Validar y clamplear al rango [0, MAP_SIZE - 1]
     if not (0 <= pos_x < MAP_SIZE and 0 <= pos_y < MAP_SIZE):
@@ -108,14 +135,12 @@ def process_taxi_message(message):
             f"Taxi {taxi_id} reportó posición fuera de rango: ({pos_x}, {pos_y}). "
             f"Map size = {MAP_SIZE}x{MAP_SIZE}. Ignorando..."
         )
-        # ajusta pos_x, pos_y
         pos_x = max(0, min(pos_x, MAP_SIZE - 1))
         pos_y = max(0, min(pos_y, MAP_SIZE - 1))
 
-    # Si está en rango, continuar con la lógica normal.
     taxis[taxi_id] = {
         "position": (pos_x, pos_y),
-        "available": message['available']
+        "available": data['available']
     }
     update_map()
     logging.info(f"Taxi {taxi_id} updated: {taxis[taxi_id]}")
