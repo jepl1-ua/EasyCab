@@ -106,7 +106,10 @@ def desregistrar():
         pass
 
 def conectar_socket():
-    return socket.create_connection((CENTRAL_HOST, CENTRAL_PORT))
+    sock = socket.create_connection((CENTRAL_HOST, CENTRAL_PORT))
+    # Avoid blocking forever so loops can exit when stop_event is set
+    sock.settimeout(1.0)
+    return sock
 
 def autenticar(sock):
     sock.sendall(json.dumps({"taxi_id": TAXI_ID}).encode())
@@ -115,8 +118,10 @@ def autenticar(sock):
     return token
 
 def enviar_mensaje(sock, token, payload):
+    """Send an encrypted payload including the taxi id."""
+    payload_with_id = {"taxi_id": TAXI_ID, **payload}
     try:
-        encrypted = fernet.encrypt(json.dumps(payload).encode())
+        encrypted = fernet.encrypt(json.dumps(payload_with_id).encode())
     except Exception as e:
         print(f"Error al cifrar: {e}")
         return
@@ -126,7 +131,7 @@ def enviar_mensaje(sock, token, payload):
 def leer_sensor(sock, token):
     while not stop_event.is_set():
         estado = obtener_sensor()
-        enviar_mensaje(sock, token, {"sensor_status": estado})
+        enviar_mensaje(sock, token, {"status": estado})
         if estado == "KO":
             print("Sensor KO. Deteniendo taxi.")
             stop_event.set()
@@ -149,7 +154,10 @@ def mover_hacia(sock, token, destino):
 
 def procesar_comandos(sock, token):
     while not stop_event.is_set():
-        datos = sock.recv(1024)
+        try:
+            datos = sock.recv(1024)
+        except socket.timeout:
+            continue
         if not datos:
             break
         try:
@@ -174,7 +182,7 @@ def procesar_comandos(sock, token):
 
 def main():
     registrar()
-    start_sensor_server()
+    server = start_sensor_server()
     sock = conectar_socket()
     token = autenticar(sock)
     sensor_thread = threading.Thread(target=leer_sensor, args=(sock, token), daemon=True)
@@ -182,6 +190,8 @@ def main():
     try:
         procesar_comandos(sock, token)
     finally:
+        stop_event.set()
+        server.shutdown()
         desregistrar()
         sock.close()
 
