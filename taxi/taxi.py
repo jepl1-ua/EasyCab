@@ -2,10 +2,14 @@ from kafka import KafkaProducer, KafkaConsumer, errors
 import os
 import json
 import time
+import requests
 
 # Variables de entorno
 KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
 TAXI_ID = os.getenv('TAXI_ID', '101')
+REGISTRY_HOST = os.getenv('REGISTRY_HOST', 'registry')
+REGISTRY_PORT = os.getenv('REGISTRY_PORT', '5000')
+REGISTRY_URL = f"https://{REGISTRY_HOST}:{REGISTRY_PORT}"
 
 def wait_for_kafka(bootstrap_servers, retries=20, delay=5):
     """
@@ -36,6 +40,12 @@ consumer = KafkaConsumer(
     bootstrap_servers=KAFKA_BROKER,
     value_deserializer=lambda v: json.loads(v.decode('utf-8'))
 )
+
+def register_with_registry():
+    try:
+        requests.post(f"{REGISTRY_URL}/register", json={"taxi_id": TAXI_ID}, verify=False)
+    except Exception as e:
+        print(f"Failed to register taxi: {e}")
 
 # Estado inicial del taxi
 taxi_state = {
@@ -80,6 +90,7 @@ def listen_for_assignments():
             producer.send('TAXI_POSITIONS', taxi_state)
 
 if __name__ == "__main__":
+    register_with_registry()
     # Publicar estado inicial
     producer.send('TAXI_POSITIONS', taxi_state)
     listen_for_assignments()

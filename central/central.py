@@ -4,11 +4,15 @@ import json
 import logging
 import threading
 import time
+import requests
 
 # Configuración
 HOST = os.getenv('CENTRAL_HOST', '0.0.0.0')
 PORT = int(os.getenv('CENTRAL_PORT', '8443'))
 KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
+REGISTRY_HOST = os.getenv('REGISTRY_HOST', 'registry')
+REGISTRY_PORT = os.getenv('REGISTRY_PORT', '5000')
+REGISTRY_URL = f"https://{REGISTRY_HOST}:{REGISTRY_PORT}"
 logging.basicConfig(filename='logs/central.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
 def wait_for_kafka(bootstrap_servers, retries=10, delay=5):
@@ -45,6 +49,16 @@ city_map = [[' ' for _ in range(MAP_SIZE)] for _ in range(MAP_SIZE)]
 taxis = {}  # Registro de taxis conectados
 clients = {}  # Solicitudes activas
 
+def taxi_is_registered(taxi_id):
+    try:
+        url = f"{REGISTRY_URL}/registered/{taxi_id}"
+        resp = requests.get(url, verify=False)
+        if resp.status_code == 200:
+            return resp.json().get('registered', False)
+    except Exception as e:
+        logging.error(f"Error contacting registry: {e}")
+    return False
+
 def update_map():
     for x in range(MAP_SIZE):
         for y in range(MAP_SIZE):
@@ -58,6 +72,9 @@ def update_map():
 
 def process_taxi_message(message):
     taxi_id = message['taxi_id']
+    if not taxi_is_registered(taxi_id):
+        logging.warning(f"Taxi {taxi_id} not registered. Ignoring message")
+        return
     pos_x = message['position']['x']
     pos_y = message['position']['y']
 

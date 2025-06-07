@@ -51,6 +51,18 @@ services:
     profiles:
       - central
 
+  registry:
+    build:
+      context: ./registry
+    env_file:
+      - ${ENV_FILE:-.env.distributed}
+    ports:
+      - "${REGISTRY_PORT:-5000}:${REGISTRY_PORT:-5000}"
+    networks:
+      - easycab
+    profiles:
+      - central
+
   taxi:
     build:
       context: ./taxi
