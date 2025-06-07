@@ -77,20 +77,58 @@ taxis = {}  # Registro de taxis conectados
 clients = {}  # Solicitudes activas
 # Tokens de autenticación por taxi
 taxi_tokens = {}
+# Archivo opcional de localizaciones iniciales
+LOCATIONS_FILE = os.getenv('LOCATIONS_FILE', os.path.join(os.path.dirname(__file__), 'locations.json'))
+
+# Estado de tráfico reportado por CTC
+traffic_status = 'UNKNOWN'
+
+
+def audit_log(ip, action, result):
+    """Registrar evento en log de auditoría."""
+    logging.info(f"AUDIT | IP:{ip} | {action} | {result}")
+
+
+def broadcast_map():
+    """Enviar mapa actualizado a Kafka."""
+    producer.send('CITY_MAP', {'map': city_map})
+
+
+def load_locations():
+    """Leer posiciones iniciales desde un archivo opcional."""
+    if os.path.exists(LOCATIONS_FILE):
+        try:
+            with open(LOCATIONS_FILE, 'r') as f:
+                data = json.load(f)
+            for taxi_id, pos in data.get('taxis', {}).items():
+                taxis[str(taxi_id)] = {
+                    'position': (pos['x'], pos['y']),
+                    'available': True,
+                }
+            update_map()
+            broadcast_map()
+            logging.info(f"Loaded locations from {LOCATIONS_FILE}")
+        except Exception as e:
+            logging.error(f"Failed to load locations: {e}")
+    else:
+        logging.info(f"Locations file {LOCATIONS_FILE} not found")
 
 def check_city_status():
+    global traffic_status
     try:
         resp = requests.get(CTC_URL, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
-            status = data.get('status')
+            traffic_status = data.get('status', 'UNKNOWN')
             city = data.get('city')
-            print(f"CTC status for {city}: {status}")
-            logging.info(f"CTC status for {city}: {status}")
+            print(f"CTC status for {city}: {traffic_status}")
+            logging.info(f"CTC status for {city}: {traffic_status}")
         else:
             logging.warning(f"CTC responded with status {resp.status_code}")
+            traffic_status = 'UNKNOWN'
     except Exception as e:
         logging.error(f"Error contacting CTC: {e}")
+        traffic_status = 'UNKNOWN'
 
 def monitor_traffic():
     while True:
@@ -137,6 +175,7 @@ def update_map():
         x, y = data['position']  # Esto desempaqueta la tupla (3, 4)
         city_map[x][y] = str(taxi_id)
     logging.info("Map updated")
+    broadcast_map()
 
 def process_taxi_message(message):
     taxi_id = str(message.get('taxi_id'))
@@ -182,6 +221,7 @@ def process_taxi_message(message):
     }
     update_map()
     logging.info(f"Taxi {taxi_id} updated: {taxis[taxi_id]}")
+    audit_log('N/A', f'taxi_update_{taxi_id}', 'OK')
 
 def process_customer_message(message):
     """Procesar solicitudes de clientes."""
@@ -192,6 +232,11 @@ def process_customer_message(message):
         "pickup_location": pickup,
         "destination": final_destination,
     }
+
+    if traffic_status == 'KO':
+        logging.info(f"Service request from Client {client_id} denied due to traffic KO")
+        audit_log('N/A', f'client_{client_id}_request', 'DENIED')
+        return
 
     # Asignar taxi
     assigned_taxi = None
@@ -209,6 +254,7 @@ def process_customer_message(message):
         }
         producer.send('TAXI_ASSIGNMENTS', response)
         logging.info(f"Assigned Taxi {assigned_taxi} to Client {client_id}")
+        audit_log('N/A', f'assign_taxi_{assigned_taxi}', f'Client {client_id}')
     else:
         logging.info(f"No taxis available for Client {client_id}")
 
@@ -218,6 +264,7 @@ def process_sensor_message(message):
     status = message.get('status')
     if status == 'KO':
         send_return_to_base(taxi_id)
+        audit_log('N/A', f'sensor_KO_{taxi_id}', 'return_to_base')
 
 def kafka_listener():
     """Escuchar mensajes en Kafka."""
@@ -237,8 +284,38 @@ def start_server():
     logging.info("Central server started")
     kafka_listener()
 
+
+def command_loop():
+    """Aceptar comandos manuales desde consola."""
+    while True:
+        cmd = input().strip().split()
+        if not cmd:
+            continue
+        action = cmd[0].lower()
+        if action == 'parar' and len(cmd) == 2:
+            producer.send('TAXI_COMMANDS', {'taxi_id': cmd[1], 'command': 'stop'})
+            audit_log('N/A', f'stop_{cmd[1]}', 'sent')
+        elif action == 'reanudar' and len(cmd) == 2:
+            producer.send('TAXI_COMMANDS', {'taxi_id': cmd[1], 'command': 'resume'})
+            audit_log('N/A', f'resume_{cmd[1]}', 'sent')
+        elif action == 'cambiar' and len(cmd) == 4:
+            destination = {'x': int(cmd[2]), 'y': int(cmd[3])}
+            producer.send('TAXI_COMMANDS', {
+                'taxi_id': cmd[1],
+                'command': 'change_destination',
+                'destination': destination,
+            })
+            audit_log('N/A', f'change_dest_{cmd[1]}', destination)
+        elif action == 'volver' and len(cmd) == 2:
+            send_return_to_base(cmd[1])
+            audit_log('N/A', f'return_base_{cmd[1]}', 'sent')
+        else:
+            print('Comando no reconocido')
+
 if __name__ == "__main__":
+    load_locations()
     threading.Thread(target=start_server, daemon=True).start()
     threading.Thread(target=monitor_traffic, daemon=True).start()
+    threading.Thread(target=command_loop, daemon=True).start()
     while True:
         time.sleep(1)
