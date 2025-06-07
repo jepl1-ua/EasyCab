@@ -4,6 +4,9 @@ docker-compose down --volumes --remove-orphans
 export ENV_FILE=.env.local
 docker-compose up --build -d
 
+El fichero `.env.local` ya no define `CENTRAL_HOST`. La Central se
+ejecuta por defecto en `0.0.0.0` gracias a su Dockerfile.
+
 # Método B: con un "override" en cada servicio
 docker-compose --env-file .env.local up --build -d
 
