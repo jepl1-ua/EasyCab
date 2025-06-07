@@ -107,6 +107,9 @@ LOCATIONS_FILE = os.getenv('LOCATIONS_FILE', os.path.join(os.path.dirname(__file
 # Estado de tráfico reportado por CTC
 traffic_status = 'UNKNOWN'
 
+# Tiempo de espera para considerar que un taxi ha caído (segundos)
+TAXI_TIMEOUT = int(os.getenv('TAXI_TIMEOUT', '10'))
+
 
 @app.route('/state', methods=['GET'])
 def state():
@@ -177,6 +180,25 @@ def monitor_traffic():
         check_city_status()
         time.sleep(10)
 
+
+def monitor_taxis():
+    """Detectar taxis desconectados."""
+    while True:
+        now = time.time()
+        for taxi_id, info in list(taxis.items()):
+            last = info.get('last_update')
+            if last and not info.get('incident') and now - last > TAXI_TIMEOUT:
+                logging.error(f"Taxi {taxi_id} lost connection")
+                info['incident'] = True
+                update_map()
+                client_id = info.get('client_id')
+                if client_id is not None:
+                    producer.send('CLIENT_NOTIFICATIONS', {
+                        'client_id': client_id,
+                        'message': 'Taxi lost'
+                    })
+        time.sleep(1)
+
 def taxi_is_registered(taxi_id):
     try:
         url = f"{REGISTRY_URL}/registered/{taxi_id}"
@@ -213,9 +235,9 @@ def update_map():
             city_map[x][y] = ' '
 
     for taxi_id, data in taxis.items():
-        # Aquí 'position' ahora es (pos_x, pos_y)
-        x, y = data['position']  # Esto desempaqueta la tupla (3, 4)
-        city_map[x][y] = str(taxi_id)
+        x, y = data['position']
+        symbol = 'X' if data.get('incident') else str(taxi_id)
+        city_map[x][y] = symbol
     logging.info("Map updated")
     broadcast_map()
 
@@ -257,10 +279,15 @@ def process_taxi_message(message):
         pos_x = max(0, min(pos_x, MAP_SIZE - 1))
         pos_y = max(0, min(pos_y, MAP_SIZE - 1))
 
-    taxis[taxi_id] = {
+    entry = taxis.setdefault(taxi_id, {})
+    entry.update({
         "position": (pos_x, pos_y),
-        "available": data['available']
-    }
+        "available": data['available'],
+        "last_update": time.time()
+    })
+    entry.pop('incident', None)
+    if data['available']:
+        entry.pop('client_id', None)
     update_map()
     logging.info(f"Taxi {taxi_id} updated: {taxis[taxi_id]}")
     audit_log('N/A', f'taxi_update_{taxi_id}', 'OK')
@@ -286,6 +313,7 @@ def process_customer_message(message):
         if details['available']:
             assigned_taxi = taxi_id
             taxis[taxi_id]['available'] = False
+            taxis[taxi_id]['client_id'] = client_id
             break
     if assigned_taxi:
         response = {
@@ -363,6 +391,7 @@ if __name__ == "__main__":
     load_locations()
     threading.Thread(target=start_server, daemon=True).start()
     threading.Thread(target=monitor_traffic, daemon=True).start()
+    threading.Thread(target=monitor_taxis, daemon=True).start()
     threading.Thread(target=command_loop, daemon=True).start()
     threading.Thread(target=start_api, daemon=True).start()
     while True:
