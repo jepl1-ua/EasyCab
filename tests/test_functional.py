@@ -1,5 +1,6 @@
 import os
 import time
+import json
 from kafka import KafkaConsumer, KafkaProducer
 
 KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
@@ -9,7 +10,11 @@ def test_functional():
     consumer = KafkaConsumer('TAXI_ASSIGNMENTS', bootstrap_servers=KAFKA_BROKER, value_deserializer=lambda v: json.loads(v.decode('utf-8')))
 
     # Enviar solicitud de cliente
-    client_request = {"client_id": 1, "pickup_location": {"x": 5, "y": 5}}
+    client_request = {
+        "client_id": 1,
+        "pickup_location": {"x": 5, "y": 5},
+        "destination": {"x": 1, "y": 1},
+    }
     producer.send('CUSTOMER_REQUESTS', client_request)
     print("Client request sent")
 

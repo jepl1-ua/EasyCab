@@ -55,7 +55,12 @@ def listen_for_assignments():
     for message in consumer:
         assignment = message.value
         if assignment["client_id"] == CLIENT_ID:
-            print(f"Asignación recibida: Taxi {assignment['taxi_id']} va a {assignment['destination']}")
+            pickup = assignment.get("pickup_location")
+            final_dest = assignment.get("destination")
+            print(
+                f"Asignación recibida: Taxi {assignment['taxi_id']} "
+                f"recogerá en {pickup} y llevará a {final_dest}"
+            )
 
 if __name__ == "__main__":
     print(f"Cliente {CLIENT_ID} iniciado...")
