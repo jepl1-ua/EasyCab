@@ -69,8 +69,15 @@ def listen_for_assignments():
         if assignment["taxi_id"] == TAXI_ID:
             print(f"Asignación recibida: {assignment}")
             destination = assignment["destination"]
+            # Marcar el taxi como ocupado y notificar al Central
+            taxi_state["available"] = False
+            producer.send('TAXI_POSITIONS', taxi_state)
+
             update_position(destination)
-            taxi_state["available"] = True  # Liberar taxi al terminar
+
+            # Liberar taxi al terminar y notificar su disponibilidad
+            taxi_state["available"] = True
+            producer.send('TAXI_POSITIONS', taxi_state)
 
 if __name__ == "__main__":
     # Publicar estado inicial
