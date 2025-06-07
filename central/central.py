@@ -82,8 +82,12 @@ def process_taxi_message(message):
 def process_customer_message(message):
     """Procesar solicitudes de clientes."""
     client_id = message['client_id']
-    destination = message['pickup_location']
-    clients[client_id] = destination
+    pickup = message['pickup_location']
+    final_destination = message.get('destination')
+    clients[client_id] = {
+        "pickup_location": pickup,
+        "destination": final_destination,
+    }
 
     # Asignar taxi
     assigned_taxi = None
@@ -96,7 +100,8 @@ def process_customer_message(message):
         response = {
             "client_id": client_id,
             "taxi_id": assigned_taxi,
-            "destination": destination
+            "pickup_location": pickup,
+            "destination": final_destination,
         }
         producer.send('TAXI_ASSIGNMENTS', response)
         logging.info(f"Assigned Taxi {assigned_taxi} to Client {client_id}")

@@ -1,5 +1,5 @@
 [
-    {"pickup_location": {"x": 10, "y": 15}},
-    {"pickup_location": {"x": 5, "y": 8}},
-    {"pickup_location": {"x": 20, "y": 20}}
+    {"pickup_location": {"x": 10, "y": 15}, "destination": {"x": 2, "y": 3}},
+    {"pickup_location": {"x": 5, "y": 8}, "destination": {"x": 7, "y": 1}},
+    {"pickup_location": {"x": 18, "y": 18}, "destination": {"x": 0, "y": 0}}
 ]
