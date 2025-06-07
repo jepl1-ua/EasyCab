@@ -58,3 +58,33 @@ def test_load_locations_updates_map(monkeypatch, tmp_path, central_module):
     module.load_locations()
     assert module.taxis['101']['position'] == (3, 4)
     assert any(topic == 'CITY_MAP' for topic, _ in module.producer.sent)
+
+
+def test_sensor_status_triggers_return(monkeypatch, central_module):
+    """Central should send a return_to_base command when sensor reports KO."""
+    module = central_module
+    module.producer.sent.clear()
+    module.taxi_tokens = {'55': 'token'}
+
+    message = {'taxi_id': '55', 'status': 'KO'}
+    module.process_sensor_message(message)
+
+    assert ('TAXI_COMMANDS', {'taxi_id': '55', 'command': 'return_to_base'}) in module.producer.sent
+
+
+def test_kafka_listener_processes_sensor_message(monkeypatch, central_module):
+    module = central_module
+
+    class SingleMessageConsumer:
+        def __iter__(self_inner):
+            msg = types.SimpleNamespace(topic='TAXI_SENSOR_STATUS', value={'taxi_id': '42', 'status': 'KO'})
+            return iter([msg])
+
+    module.consumer = SingleMessageConsumer()
+    module.producer.sent.clear()
+    module.taxi_tokens = {'42': 'token'}
+
+    # Run listener once (will exit after iterator is exhausted)
+    module.kafka_listener()
+
+    assert ('TAXI_COMMANDS', {'taxi_id': '42', 'command': 'return_to_base'}) in module.producer.sent

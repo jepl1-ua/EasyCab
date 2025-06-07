@@ -2,15 +2,20 @@ import os
 import json
 import time
 import threading
-import requests
+from kafka import KafkaProducer
 
-DE_HOST = os.getenv('DE_HOST', 'taxi')
-DE_PORT = int(os.getenv('DE_PORT', '9000'))
+KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
 TAXI_ID = os.getenv('TAXI_ID', '101')
 SENSOR_INTERVAL = float(os.getenv('SENSOR_INTERVAL', '1'))
 
 # Flag to inject failure
 failure = False
+
+# Initialize Kafka producer
+producer = KafkaProducer(
+    bootstrap_servers=KAFKA_BROKER,
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
 
 
 def input_loop():
@@ -28,12 +33,7 @@ def send_sensor_status():
         status = 'KO' if failure else 'OK'
         payload = {"taxi_id": TAXI_ID, "status": status}
         try:
-            requests.post(
-                f"http://{DE_HOST}:{DE_PORT}/status",
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=1,
-            )
+            producer.send('TAXI_SENSOR_STATUS', payload)
             print(f"Sensor {TAXI_ID} sent status: {status}")
         except Exception as exc:
             print(f"Failed to send status: {exc}")
