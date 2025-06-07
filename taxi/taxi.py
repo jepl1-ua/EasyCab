@@ -93,7 +93,7 @@ def send_state():
     if not auth_token:
         return
     if not fernet:
-        payload = taxi_state
+        payload = dict(taxi_state)
     else:
         encrypted = fernet.encrypt(json.dumps(taxi_state).encode()).decode()
         payload = {"taxi_id": TAXI_ID, "payload": encrypted}
