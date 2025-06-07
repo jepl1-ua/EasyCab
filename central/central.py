@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 import requests
+import uuid
 from cryptography.fernet import Fernet, InvalidToken
 
 # EC_CTC configuration
@@ -56,14 +57,26 @@ def wait_for_kafka(bootstrap_servers, retries=10, delay=5):
 wait_for_kafka(bootstrap_servers=KAFKA_BROKER)
 
 # Inicializar Kafka
-producer = KafkaProducer(bootstrap_servers=KAFKA_BROKER, value_serializer=lambda v: json.dumps(v).encode('utf-8'))
-consumer = KafkaConsumer('TAXI_POSITIONS', 'CUSTOMER_REQUESTS', bootstrap_servers=KAFKA_BROKER, value_deserializer=lambda v: json.loads(v.decode('utf-8')))
+producer = KafkaProducer(
+    bootstrap_servers=KAFKA_BROKER,
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+consumer = KafkaConsumer(
+    'TAXI_POSITIONS',
+    'CUSTOMER_REQUESTS',
+    'TAXI_AUTH',
+    'TAXI_SENSOR_STATUS',
+    bootstrap_servers=KAFKA_BROKER,
+    value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+)
 
 # Mapa y registros
 MAP_SIZE = 20
 city_map = [[' ' for _ in range(MAP_SIZE)] for _ in range(MAP_SIZE)]
 taxis = {}  # Registro de taxis conectados
 clients = {}  # Solicitudes activas
+# Tokens de autenticación por taxi
+taxi_tokens = {}
 
 def check_city_status():
     try:
@@ -94,6 +107,26 @@ def taxi_is_registered(taxi_id):
         logging.error(f"Error contacting registry: {e}")
     return False
 
+
+def process_auth_request(message):
+    """Procesar solicitud de autenticación de un taxi."""
+    taxi_id = str(message.get('taxi_id'))
+    if not taxi_is_registered(taxi_id):
+        logging.warning(f"Taxi {taxi_id} tried to auth but is not registered")
+        return
+    token = str(uuid.uuid4())
+    taxi_tokens[taxi_id] = token
+    producer.send('TAXI_AUTH_RESPONSE', {"taxi_id": taxi_id, "token": token})
+    logging.info(f"Auth token generated for taxi {taxi_id}")
+
+
+def send_return_to_base(taxi_id):
+    """Enviar orden de volver a base e invalidar token."""
+    if taxi_id in taxi_tokens:
+        del taxi_tokens[taxi_id]
+    producer.send('TAXI_COMMANDS', {"taxi_id": taxi_id, "command": "return_to_base"})
+    logging.info(f"Return to base sent to taxi {taxi_id}")
+
 def update_map():
     for x in range(MAP_SIZE):
         for y in range(MAP_SIZE):
@@ -107,6 +140,7 @@ def update_map():
 
 def process_taxi_message(message):
     taxi_id = str(message.get('taxi_id'))
+    token = message.get('token')
     payload = message.get('payload')
     key = TAXI_KEYS.get(taxi_id)
     if not key or not payload:
@@ -120,6 +154,10 @@ def process_taxi_message(message):
     except InvalidToken:
         print("mensaje no comprensible")
         logging.error(f"Invalid encryption from taxi {taxi_id}")
+        return
+
+    if taxi_tokens.get(taxi_id) != token:
+        logging.warning(f"Invalid or missing token from taxi {taxi_id}")
         return
 
     if not taxi_is_registered(taxi_id):
@@ -174,6 +212,13 @@ def process_customer_message(message):
     else:
         logging.info(f"No taxis available for Client {client_id}")
 
+def process_sensor_message(message):
+    """Procesar mensajes del sensor del taxi."""
+    taxi_id = str(message.get('taxi_id'))
+    status = message.get('status')
+    if status == 'KO':
+        send_return_to_base(taxi_id)
+
 def kafka_listener():
     """Escuchar mensajes en Kafka."""
     for message in consumer:
@@ -182,6 +227,10 @@ def kafka_listener():
             process_taxi_message(message.value)
         elif topic == 'CUSTOMER_REQUESTS':
             process_customer_message(message.value)
+        elif topic == 'TAXI_AUTH':
+            process_auth_request(message.value)
+        elif topic == 'TAXI_SENSOR_STATUS':
+            process_sensor_message(message.value)
 
 def start_server():
     """Iniciar el servidor Central."""
