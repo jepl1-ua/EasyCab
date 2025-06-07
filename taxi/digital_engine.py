@@ -115,8 +115,10 @@ def autenticar(sock):
     return token
 
 def enviar_mensaje(sock, token, payload):
+    """Send an encrypted payload including the taxi id."""
+    payload_with_id = {"taxi_id": TAXI_ID, **payload}
     try:
-        encrypted = fernet.encrypt(json.dumps(payload).encode())
+        encrypted = fernet.encrypt(json.dumps(payload_with_id).encode())
     except Exception as e:
         print(f"Error al cifrar: {e}")
         return
@@ -126,7 +128,7 @@ def enviar_mensaje(sock, token, payload):
 def leer_sensor(sock, token):
     while not stop_event.is_set():
         estado = obtener_sensor()
-        enviar_mensaje(sock, token, {"sensor_status": estado})
+        enviar_mensaje(sock, token, {"status": estado})
         if estado == "KO":
             print("Sensor KO. Deteniendo taxi.")
             stop_event.set()
