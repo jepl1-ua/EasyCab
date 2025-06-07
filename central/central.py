@@ -7,6 +7,7 @@ import time
 import requests
 import uuid
 from cryptography.fernet import Fernet, InvalidToken
+from flask import Flask, jsonify
 
 # EC_CTC configuration
 CTC_HOST = os.getenv('CTC_HOST', 'ctc')
@@ -21,6 +22,29 @@ REGISTRY_HOST = os.getenv('REGISTRY_HOST', 'registry')
 REGISTRY_PORT = os.getenv('REGISTRY_PORT', '5000')
 REGISTRY_URL = f"https://{REGISTRY_HOST}:{REGISTRY_PORT}"
 logging.basicConfig(filename='logs/central.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Captura de últimos errores y auditoría para exponer vía API
+last_errors = []
+audit_entries = []
+
+class APILogHandler(logging.Handler):
+    def emit(self, record):
+        msg = self.format(record)
+        if record.levelno >= logging.ERROR:
+            last_errors.append(msg)
+            # Limitar tamaño de la lista a 50 entradas
+            if len(last_errors) > 50:
+                del last_errors[0]
+        if msg.startswith("AUDIT"):
+            audit_entries.append(msg)
+            if len(audit_entries) > 50:
+                del audit_entries[0]
+
+logger = logging.getLogger()
+logger.addHandler(APILogHandler())
+
+# Aplicación Flask para exponer el estado del sistema
+app = Flask(__name__)
 
 # Carga de claves de taxis para desencriptar mensajes
 DEFAULT_KEYS_PATH = os.path.join(os.path.dirname(__file__), 'taxi_keys.json')
@@ -82,6 +106,24 @@ LOCATIONS_FILE = os.getenv('LOCATIONS_FILE', os.path.join(os.path.dirname(__file
 
 # Estado de tráfico reportado por CTC
 traffic_status = 'UNKNOWN'
+
+
+@app.route('/state', methods=['GET'])
+def state():
+    """Exponer estado completo del sistema."""
+    return jsonify({
+        'map': city_map,
+        'taxis': taxis,
+        'clients': clients,
+        'traffic': traffic_status,
+        'errors': last_errors[-10:],
+    })
+
+
+@app.route('/audit', methods=['GET'])
+def audit():
+    """Exponer últimas entradas de auditoría."""
+    return jsonify({'audit': audit_entries[-50:]})
 
 
 def audit_log(ip, action, result):
@@ -285,6 +327,11 @@ def start_server():
     kafka_listener()
 
 
+def start_api():
+    """Run the REST API to expose system state."""
+    app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+
+
 def command_loop():
     """Aceptar comandos manuales desde consola."""
     while True:
@@ -317,5 +364,6 @@ if __name__ == "__main__":
     threading.Thread(target=start_server, daemon=True).start()
     threading.Thread(target=monitor_traffic, daemon=True).start()
     threading.Thread(target=command_loop, daemon=True).start()
+    threading.Thread(target=start_api, daemon=True).start()
     while True:
         time.sleep(1)

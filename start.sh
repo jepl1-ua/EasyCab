@@ -15,7 +15,7 @@ fi
 # Levantar servicios en el orden correcto según el perfil
 if [ "$MODE" == "local" ]; then
   echo "Starting all services in local mode..."
-  docker-compose --profile central --profile taxi --profile customer --profile sensor up --build
+  docker-compose --profile central --profile taxi --profile customer --profile sensor --profile front up --build
 
 elif [ "$MODE" == "distributed" ]; then
   case "$SERVICE" in
@@ -35,8 +35,12 @@ elif [ "$MODE" == "distributed" ]; then
       echo "Starting Sensor service (requires Central and Taxi running)..."
       docker-compose --profile sensor up --build
       ;;
+    front)
+      echo "Starting Front service (requires Central running)..."
+      docker-compose --profile front up --build
+      ;;
     *)
-      echo "Invalid service specified. Use: central, taxi, customer, or sensor."
+      echo "Invalid service specified. Use: central, taxi, customer, sensor or front."
       ;;
   esac
 
