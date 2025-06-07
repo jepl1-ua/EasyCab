@@ -76,6 +76,7 @@ def listen_for_assignments():
             if final_dest:
                 update_position(final_dest)
             taxi_state["available"] = True  # Liberar taxi al terminar
+
             producer.send('TAXI_POSITIONS', taxi_state)
 
 if __name__ == "__main__":
