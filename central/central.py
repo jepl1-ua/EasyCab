@@ -6,6 +6,11 @@ import threading
 import time
 import requests
 
+# EC_CTC configuration
+CTC_HOST = os.getenv('CTC_HOST', 'ctc')
+CTC_PORT = os.getenv('CTC_PORT', '8080')
+CTC_URL = f"http://{CTC_HOST}:{CTC_PORT}/traffic"
+
 # Configuración
 HOST = os.getenv('CENTRAL_HOST', '0.0.0.0')
 PORT = int(os.getenv('CENTRAL_PORT', '8443'))
@@ -48,6 +53,25 @@ MAP_SIZE = 20
 city_map = [[' ' for _ in range(MAP_SIZE)] for _ in range(MAP_SIZE)]
 taxis = {}  # Registro de taxis conectados
 clients = {}  # Solicitudes activas
+
+def check_city_status():
+    try:
+        resp = requests.get(CTC_URL, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            status = data.get('status')
+            city = data.get('city')
+            print(f"CTC status for {city}: {status}")
+            logging.info(f"CTC status for {city}: {status}")
+        else:
+            logging.warning(f"CTC responded with status {resp.status_code}")
+    except Exception as e:
+        logging.error(f"Error contacting CTC: {e}")
+
+def monitor_traffic():
+    while True:
+        check_city_status()
+        time.sleep(10)
 
 def taxi_is_registered(taxi_id):
     try:
@@ -140,4 +164,7 @@ def start_server():
     kafka_listener()
 
 if __name__ == "__main__":
-    threading.Thread(target=start_server).start()
+    threading.Thread(target=start_server, daemon=True).start()
+    threading.Thread(target=monitor_traffic, daemon=True).start()
+    while True:
+        time.sleep(1)

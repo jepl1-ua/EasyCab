@@ -93,6 +93,20 @@ services:
     profiles:
       - sensor
 
+  ctc:
+    build:
+      context: ./ctc
+    env_file:
+      - ${ENV_FILE:-.env.distributed}
+    environment:
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+    ports:
+      - "${CTC_PORT:-8080}:${CTC_PORT:-8080}"
+    networks:
+      - easycab
+    profiles:
+      - ctc
+
 networks:
   easycab:
     driver: bridge
