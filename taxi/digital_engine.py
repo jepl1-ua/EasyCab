@@ -18,6 +18,7 @@ SENSOR_INTERVAL = float(os.getenv("SENSOR_INTERVAL", "1"))
 CIFRA_KEY = os.getenv("CIFRA_KEY", None)
 BASE_X = int(os.getenv("BASE_X", "0"))
 BASE_Y = int(os.getenv("BASE_Y", "0"))
+SENSOR_SERVER_PORT = int(os.getenv("SENSOR_SERVER_PORT", "9000"))
 
 if CIFRA_KEY is None:
     # Generate random key if not provided
@@ -27,14 +28,54 @@ else:
 
 fernet = Fernet(CIFRA_KEY)
 
+# Sensor server state
+sensor_status = "OK"
+
+def update_sensor_status(status: str) -> None:
+    """Update the last received sensor status."""
+    global sensor_status
+    sensor_status = status
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class SensorHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        if self.path != "/status":
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        length = int(self.headers.get("Content-Length", 0))
+        data = self.rfile.read(length)
+        try:
+            payload = json.loads(data.decode())
+            update_sensor_status(payload.get("status", "OK"))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+        except Exception:
+            self.send_response(400)
+            self.end_headers()
+
+    def log_message(self, *args, **kwargs):
+        # Silence default logging
+        return
+
+def start_sensor_server():
+    server = HTTPServer(('', SENSOR_SERVER_PORT), SensorHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"Sensor server listening on port {SENSOR_SERVER_PORT}")
+    return server
+
 # State
 posicion_actual = {"x": 0, "y": 0}
 BASE = {"x": BASE_X, "y": BASE_Y}
 stop_event = threading.Event()
 
 def obtener_sensor():
-    """Simulate sensor reading. Override with real sensor logic."""
-    return "OK"
+    """Return the latest sensor status received."""
+    return sensor_status
 
 def obtener_trafico():
     """Simulate traffic status from CTC."""
@@ -133,6 +174,7 @@ def procesar_comandos(sock, token):
 
 def main():
     registrar()
+    start_sensor_server()
     sock = conectar_socket()
     token = autenticar(sock)
     sensor_thread = threading.Thread(target=leer_sensor, args=(sock, token), daemon=True)
